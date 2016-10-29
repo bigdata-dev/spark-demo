@@ -17,14 +17,19 @@
     </repositories>
 
     <dependencies>
-   <!--     <dependency>
+        <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-streaming-kafka_2.10</artifactId>
             <version>1.6.0-cdh5.7.1</version>
-        </dependency>-->
+        </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-core_2.10</artifactId>
+            <version>1.6.0-cdh5.7.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-streaming_2.10</artifactId>
             <version>1.6.0-cdh5.7.1</version>
         </dependency>
 
@@ -33,7 +38,9 @@
     <build>
         <finalName>spark-demo</finalName>
         <sourceDirectory>src/main/scala/</sourceDirectory>
+        <!--
         <testSourceDirectory>src/test/scala/</testSourceDirectory>
+        -->
         <resources>
             <resource>
                 <directory>src/main/resources/</directory>
