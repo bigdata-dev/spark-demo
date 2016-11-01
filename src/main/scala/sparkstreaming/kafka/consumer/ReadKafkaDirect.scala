@@ -8,7 +8,7 @@ import org.apache.spark.streaming.{Seconds, StreamingContext}
 /**
   * Created by admin on 2016/10/31.
   */
-object ReadKafka {
+object ReadKafkaDirect {
   def main(args: Array[String]) {
     if(args.length<2){
       println("Usage:ReadKafka ryxc163:2181,ryxc164:2181,ryxc165:2181 consumeMsgDataTimeInterval(secs)")
