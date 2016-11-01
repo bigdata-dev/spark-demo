@@ -1,58 +1,66 @@
 package sparkstreaming.kafka.consumer
 
+import org.apache.log4j.{Level, Logger}
 import org.apache.spark.SparkConf
-import org.apache.spark.streaming.dstream.DStream
-import org.apache.spark.streaming.kafka.KafkaUtils
+import kafka.serializer.StringDecoder
+import org.apache.spark.rdd.RDD
+import org.apache.spark.streaming.kafka.{KafkaManager}
 import org.apache.spark.streaming.{Seconds, StreamingContext}
 
 /**
   * Created by admin on 2016/10/31.
   */
 object ReadKafkaDirect {
+
+  def processRdd(rdd: RDD[(String, String)]) = {
+    val rs: RDD[(String, Int)] = rdd.map(_._2).flatMap(_.split("\t")).map((_,1)).reduceByKey(_ + _)
+    rs.foreach(println)
+  }
+
   def main(args: Array[String]) {
-    if(args.length<2){
-      println("Usage:ReadKafka ryxc163:2181,ryxc164:2181,ryxc165:2181 consumeMsgDataTimeInterval(secs)")
+    if (args.length < 3) {
+      System.err.println( s"""
+                              |Usage: DirectKafkaWordCount <brokers> <topics> <groupid> <processingInterval>
+                              |  <brokers> is a list of one or more Kafka brokers
+                              |  <topics> is a list of one or more kafka topics to consume from
+                              |  <groupid> is a consume group
+                              |  <processingInterval> is  execution time interval
+        """.stripMargin)
       System.exit(1)
     }
 
-    val Array(zkServers,processingInterval) = args;
-    val conf = new SparkConf().setAppName("ReadKafka")
+    Logger.getLogger("org").setLevel(Level.WARN)
+
+    val Array(brokers, topics, groupId,processingInterval) = args
+
+    // Create context with (processingInterval) second batch interval
+    val conf = new SparkConf().setAppName("ReadKafkaDirect")
+    conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
     val ssc = new StreamingContext(conf,Seconds(processingInterval.toInt))
 
-    //设置检查点目录
-    ssc.checkpoint("/tmp")
-
-    val kafkaStream = KafkaUtils.createStream(
-      ssc,
-      zkServers,
-      "kafkaReadGroup1",
-      Map("user-behavior-topic" -> 1)
+    // Create direct kafka stream with brokers and topics
+    val topicsSet = topics.split(",").toSet
+    val kafkaParams = Map[String, String](
+      "metadata.broker.list" -> brokers,
+      "group.id" -> groupId,
+      "auto.offset.reset" -> "smallest"
     )
 
+    val km = new KafkaManager(kafkaParams)
 
+    val messages = km.createDirectStream[String, String, StringDecoder, StringDecoder](
+      ssc, kafkaParams, topicsSet)
 
-    kafkaStream.foreachRDD(rdd => {
-      val collect: Array[(String, String)] = rdd.collect
-      val x= rdd.count
-      println("\n\nNumber of records in this batch : " +x)
-      if (x > 0) {// RDD has data
-        for(line <- collect.toArray){
-          println("###########:"+line._2)
-          /*  var index = line._2.split("\t").view(0).toString          // That is the index
-          var timestamp = line._2.split("\t").view(1).toString   // This is the timestamp from source
-          var security =  line._2.split("\t").view(1).toString   // This is the name of the security
-          var price = line._2.split(',').view(3).toFloat        // This is the price of the security*/
-        }
+    messages.foreachRDD(rdd => {
+      if (!rdd.isEmpty()) {
+        // 先处理消息
+        processRdd(rdd)
+        // 再更新offsets
+        km.updateZKOffsets(rdd)
       }
     })
 
-    val rs: DStream[(String, Int)] = kafkaStream.map(_._2).flatMap(_.split("\t")).map((_,1)).reduceByKey(_ + _)
-
-
-    val statusrs: DStream[(String, Int)] = rs.updateStateByKey(updateFunc)
-
     //打印结果集
-    statusrs.print
     ssc.start()
     ssc.awaitTermination()
   }
