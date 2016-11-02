@@ -1,8 +1,8 @@
 package sparkstreaming.kafka.consumer
 
+import kafka.serializer.StringDecoder
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.SparkConf
-import kafka.serializer.StringDecoder
 import org.apache.spark.rdd.RDD
 import org.apache.spark.streaming.dstream.DStream
 import org.apache.spark.streaming.kafka.KafkaManager
@@ -11,12 +11,13 @@ import org.apache.spark.streaming.{Seconds, StreamingContext}
 /**
   * Created by admin on 2016/10/31.
   */
-object ReadKafkaDirect {
+object ReadKafkaDirectByStatus {
 
   def processRdd(rdd: RDD[(String, String)]) = {
     println("\n\nExecute process 'ProcessRdd'")
     try {
-      val rs: RDD[(String, Int)] = rdd.map(_._2).flatMap(_.split("\t")).map((_, 1)).reduceByKey(_ + _)
+      //val rs: RDD[(String, Int)] = rdd.map(_._2).flatMap(_.split("\t")).map((_, 1)).reduceByKey(_ + _)
+      val rs: RDD[(String)] = rdd.map(_._2)
       //val a = 3 / 0
       rs.collect.foreach(println)
     } catch {
@@ -72,10 +73,14 @@ object ReadKafkaDirect {
       }
     })
 
-    val count: DStream[Long] = kafkaStream.countByWindow(Seconds(10),Seconds(10))
-    count.print()
+    val workCountDStream: DStream[(String, Int)] = kafkaStream.map(_._2).flatMap(_.split("\t")).map((_,1)).reduceByKey(_ + _)
 
+    val statusRs: DStream[(String, Int)] = workCountDStream.updateStateByKey(updateFunc)
 
+    statusRs.foreachRDD(rdd=>{
+      println("\n\nPrint Result RDD")
+      rdd.collect.foreach(println)
+    })
 
     //启动
     ssc.start()
