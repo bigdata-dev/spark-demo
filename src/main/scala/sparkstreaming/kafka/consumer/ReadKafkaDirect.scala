@@ -13,8 +13,9 @@ import org.apache.spark.streaming.{Seconds, StreamingContext}
 object ReadKafkaDirect {
 
   def processRdd(rdd: RDD[(String, String)]) = {
+    println("\n\nExecute process 'ProcessRdd'")
     val rs: RDD[(String, Int)] = rdd.map(_._2).flatMap(_.split("\t")).map((_,1)).reduceByKey(_ + _)
-    rs.foreach(println)
+    rs.collect.foreach(println)
   }
 
   def main(args: Array[String]) {
@@ -35,7 +36,7 @@ object ReadKafkaDirect {
 
     // Create context with (processingInterval) second batch interval
     val conf = new SparkConf().setAppName("ReadKafkaDirect")
-    conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+    //conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
     val ssc = new StreamingContext(conf,Seconds(processingInterval.toInt))
 
     // Create direct kafka stream with brokers and topics
@@ -48,19 +49,22 @@ object ReadKafkaDirect {
 
     val km = new KafkaManager(kafkaParams)
 
-    val messages = km.createDirectStream[String, String, StringDecoder, StringDecoder](
+    val kafkaStream = km.createDirectStream[String, String, StringDecoder, StringDecoder](
       ssc, kafkaParams, topicsSet)
 
-    messages.foreachRDD(rdd => {
+
+    kafkaStream.foreachRDD(rdd => {
+      println("\n\nNumber of records in this batch : " +rdd.count())
+      rdd.collect.map(_._2).foreach(println)
       if (!rdd.isEmpty()) {
         // 先处理消息
         processRdd(rdd)
         // 再更新offsets
-        km.updateZKOffsets(rdd)
+        //km.updateZKOffsets(rdd)
       }
     })
 
-    //打印结果集
+    //启动
     ssc.start()
     ssc.awaitTermination()
   }
