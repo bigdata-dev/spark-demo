@@ -1,8 +1,11 @@
 package sparkstreaming.kafka.consumer
 
+import kafka.serializer.StringDecoder
+import org.apache.log4j.{Level, Logger}
+import org.apache.spark.rdd.RDD
 import org.apache.spark.{HashPartitioner, SparkConf}
 import org.apache.spark.streaming.dstream.DStream
-import org.apache.spark.streaming.kafka.KafkaUtils
+import org.apache.spark.streaming.kafka.{KafkaManager, KafkaUtils}
 import org.apache.spark.streaming.{Duration, Seconds, StreamingContext}
 
 /**
@@ -12,70 +15,60 @@ object WebPagePopularityValueCalculator {
   private val checkpointDir = "popularity-data-checkpoint"
   private val msgConsumerGroup = "user-behavior-topic-message-consumer-group"
   def main(args: Array[String]) {
-    if(args.length<2){
-      println("Usage:WebPagePopularityValueCalculator ryxc163:2181,ryxc164:2181,ryxc165:2181 consumeMsgDataTimeInterval(secs)")
+
+    if (args.length < 3) {
+      System.err.println( s"""
+                             |Usage: DirectKafkaWordCount <brokers> <topics> <groupid> <processingInterval>
+                             |  <brokers> is a list of one or more Kafka brokers
+                             |  <topics> is a list of one or more kafka topics to consume from
+                             |  <groupid> is a consume group
+                             |  <processingInterval> is  execution time interval
+        """.stripMargin)
       System.exit(1)
     }
 
-    val Array(zkServers,processingInterval) = args;
-    val conf = new SparkConf().setAppName("WebPagePopularityValueCalculator")
-    conf.setMaster("local")
-    val ssc = new StreamingContext(conf,Seconds(processingInterval.toInt))
+    Logger.getLogger("org").setLevel(Level.WARN)
 
+    val Array(brokers, topics, groupId,processingInterval) = args
+
+    // Create context with (processingInterval) second batch interval
+    val conf = new SparkConf().setAppName("ReadKafkaDirect")
+    conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+    val ssc = new StreamingContext(conf,Seconds(processingInterval.toInt))
     //using updateStateByKey asks for enabling checkpoint
     ssc.checkpoint(checkpointDir)
 
-    val kafkaStream = KafkaUtils.createStream(
-      ssc,
-      zkServers,
-      msgConsumerGroup,
-      Map("user-behavior-topic" -> 3)
+    // Create direct kafka stream with brokers and topics
+    val topicsSet = topics.split(",").toSet
+    val kafkaParams = Map[String, String](
+      "metadata.broker.list" -> brokers,
+      "group.id" -> groupId,
+      "auto.offset.reset" -> "smallest"
     )
 
-    val msgDataRDD: DStream[String] = kafkaStream.map(_._2)
+    val km = new KafkaManager(kafkaParams)
+    val kafkaStream = km.createDirectStream[String, String, StringDecoder, StringDecoder](
+      ssc, kafkaParams, topicsSet)
+    kafkaStream.foreachRDD(rdd => {
+      println("\n\nNumber of records in this batch : " +rdd.count())
+      rdd.collect.map(_._2).foreach(println)
+      if (!rdd.isEmpty()) {
+        // 先处理消息
+        processRdd(rdd)
+        // 再更新offsets
+        km.updateZKOffsets(rdd)
+      }
+    })
 
+    val msgDataRDD = kafkaStream.map(_._2)
     //for debug use only
-    println("########## Coming data in this interval...")
+    //println("Coming data in this interval...")
     msgDataRDD.print()
 
-    // e.g page37|5|1.5119122|-1
-    val popularityData = msgDataRDD.map { msgLine => {
-      val dataArr: Array[String] = msgLine.split("\\|")
-      val pageID = dataArr(0)
-      //calculate the popularity value
-      val popValue: Double = dataArr(1).toFloat * 0.8 + dataArr(2).toFloat * 0.8 + dataArr(3).toFloat * 1
-      (pageID, popValue)
-      }
-    }
+  }
 
-    //sum the previous popularity value and current value
-    val updatePopularityValue = (iterator: Iterator[(String, Seq[Double], Option[Double])]) => {
-      iterator.flatMap(t => {
-        val newValue:Double = t._2.sum
-        val stateValue:Double = t._3.getOrElse(0);
-        Some(newValue + stateValue)
-      }.map(sumedValue => (t._1, sumedValue)))
-    }
 
-    val initialRDD = ssc.sparkContext.parallelize(List(("page1", 0.00)))
-    val stateDstream = popularityData.updateStateByKey[Double](updatePopularityValue,
-      new HashPartitioner(ssc.sparkContext.defaultParallelism), true, initialRDD)
-
-    //set the checkpoint interval to avoid too frequently data checkpoint which may
-    //may significantly reduce operation throughput
-    stateDstream.checkpoint(Duration(8*processingInterval.toInt*1000))
-    //after calculation, we need to sort the result and only show the top 10 hot pages
-    stateDstream.foreachRDD { rdd => {
-      val sortedData = rdd.map{ case (k,v) => (v,k) }.sortByKey(false)
-      val topKData = sortedData.take(10).map{ case (v,k) => (k,v) }
-      topKData.foreach(x => {
-        println(x)
-      })
-    }
-    }
-
-    ssc.start()
-    ssc.awaitTermination()
+  def processRdd(rdd: RDD[(String, String)]) = {
   }
 
 }
