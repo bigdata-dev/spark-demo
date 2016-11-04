@@ -121,6 +121,9 @@ object WebPagePopularityValueCalculatorJdbc {
       //从连接池中获取一个连接
       val conn = MDBManager.getMDBManager(isLocal).getConnection
       conn.setAutoCommit(false)
+      val deleteSql = "delete from popularity_topn"
+      val deletePreparedStatement = conn.prepareStatement(deleteSql)
+      deletePreparedStatement.execute()
       val sql = "insert into popularity_topn set page_name=?,popularity=?"
       val preparedStatement = conn.prepareStatement(sql)
       topKData.foreach(r => {
