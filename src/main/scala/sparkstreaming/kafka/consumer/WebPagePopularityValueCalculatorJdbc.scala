@@ -4,7 +4,7 @@ import kafka.serializer.StringDecoder
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.streaming.dstream.DStream
-import org.apache.spark.streaming.kafka.KafkaManager
+import org.apache.spark.streaming.kafka.{HasOffsetRanges, KafkaManager, OffsetRange}
 import org.apache.spark.streaming.{Duration, Seconds, StreamingContext}
 import org.apache.spark.{HashPartitioner, SparkConf}
 import utils.MDBManager
@@ -43,7 +43,7 @@ object WebPagePopularityValueCalculatorJdbc {
     val Array(brokers, topics, groupId,processingInterval) = args
 
     // Create context with (processingInterval) second batch interval
-    val conf = new SparkConf().setAppName("ReadKafkaDirect")
+    val conf = new SparkConf().setAppName("WebPagePopularityValueCalculatorJdbc")
     conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
     val ssc = new StreamingContext(conf,Seconds(processingInterval.toInt))
     //using updateStateByKey asks for enabling checkpoint
@@ -60,15 +60,11 @@ object WebPagePopularityValueCalculatorJdbc {
     val km = new KafkaManager(kafkaParams)
     val kafkaStream = km.createDirectStream[String, String, StringDecoder, StringDecoder](
       ssc, kafkaParams, topicsSet)
+
+    //打印从kafka接入的消息
     kafkaStream.foreachRDD(rdd => {
-      println("\n\nNumber of records in this batch : " +rdd.count())
-      rdd.collect.map(_._2).foreach(println)
-      if (!rdd.isEmpty()) {
-        // 先处理消息
-        processRdd(rdd)
-        // 再更新offsets
-        km.updateZKOffsets(rdd)
-      }
+      println("\n\n##Number of records in this batch : " +rdd.count())
+      //rdd.collect.map(_._2).foreach(println)
     })
 
     val msgDataRDD: DStream[String] = kafkaStream.map(_._2)
@@ -86,7 +82,7 @@ object WebPagePopularityValueCalculatorJdbc {
       }
     }
 
-    popularityData.foreachRDD(rdd=>rdd.collect.foreach(println))
+    //popularityData.foreachRDD(rdd=>rdd.collect.foreach(println))
 
     val initalRDD: RDD[(String, Double)] = ssc.sparkContext.parallelize(List(("page1",0.00)))
     val updatePopularityValue = (iterator:Iterator[(String,Seq[Double],Option[Double])]) => {
@@ -105,7 +101,7 @@ object WebPagePopularityValueCalculatorJdbc {
 
     stateDStream.foreachRDD(rdd=>{
       println("\n\nStateByKey:"+rdd.count())
-      //rdd.collect.foreach(println)
+      //rdd.collect.foreach(println)  //使用collect效率很低的
     })
 
     //set the checkpoint interval to avoid too frequently data checkpoint which may
@@ -138,6 +134,19 @@ object WebPagePopularityValueCalculatorJdbc {
         conn.commit()
         conn.close()
       })
+    })
+
+    /**
+      * 将消费group的offset更新到zookeeper中
+      *
+      */
+    kafkaStream.foreachRDD(rdd => {
+      if (!rdd.isEmpty()) {
+        val offsetRanges: Array[OffsetRange] = rdd.asInstanceOf[HasOffsetRanges].offsetRanges
+        offsetRanges.foreach(println)
+        // 再更新offsets
+        km.updateZKOffsets(rdd)
+      }
     })
 
     ssc.start()
