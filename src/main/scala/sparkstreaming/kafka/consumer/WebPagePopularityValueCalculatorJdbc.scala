@@ -114,27 +114,30 @@ object WebPagePopularityValueCalculatorJdbc {
 
     //最后得到最新结果后，需要对结果进行排序，最后打印热度值最高的 10 个网页。
     stateDStream.foreachRDD(rdd => {
-      val sortedData: RDD[(Double, String)] = rdd.map { case (k, v) => (v, k) }.sortByKey(false)
-      val topKData:Array[(String, Double)] = sortedData.take(10).map { case (v, k) => (k, v) }
-      println("\n\nTopKData:")
-      topKData.foreach(println)
-      //从连接池中获取一个连接
-      val conn = MDBManager.getMDBManager(isLocal).getConnection
-      conn.setAutoCommit(false)
-      val deleteSql = "delete from popularity_topn"
-      val deletePreparedStatement = conn.prepareStatement(deleteSql)
-      deletePreparedStatement.execute()
-      val sql = "insert into popularity_topn set page_name=?,popularity=?"
-      val preparedStatement = conn.prepareStatement(sql)
-      topKData.foreach(r => {
-        preparedStatement.setObject(1, r._1)
-        preparedStatement.setObject(2, r._2)
-        preparedStatement.addBatch()
+      println("\n\n##foreachPartition store:")
+      rdd.foreachPartition(data=>{
+        val topKData: Array[(String, Double)] = data.toArray.sortWith(_._2 > _._2).take(10)
+        println("\n\nTopKData:")
+        topKData.foreach(println)
+
+        //从连接池中获取一个连接
+        val conn = MDBManager.getMDBManager(isLocal).getConnection
+        conn.setAutoCommit(false)
+        val deleteSql = "delete from popularity_topn"
+        val deletePreparedStatement = conn.prepareStatement(deleteSql)
+        deletePreparedStatement.execute()
+        val sql = "insert into popularity_topn set page_name=?,popularity=?"
+        val preparedStatement = conn.prepareStatement(sql)
+        topKData.foreach(r => {
+          preparedStatement.setObject(1, r._1)
+          preparedStatement.setObject(2, r._2)
+          preparedStatement.addBatch()
+        })
+        //批量提交，如果数据量大，这里可以分批提交
+        preparedStatement.executeBatch()
+        conn.commit()
+        conn.close()
       })
-      //批量提交，如果数据量大，这里可以分批提交
-      preparedStatement.executeBatch()
-      conn.commit()
-      conn.close()
     })
 
     ssc.start()
