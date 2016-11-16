@@ -12,7 +12,7 @@ import scala.util.Random
 class LamdaMsgProducer(brokers:String, topic:String) extends Runnable{
   private val brokerList: String = brokers
 
-  private val MAX_MSG_NUM: Int = 3
+  private val MAX_MSG_NUM: Int = 30
 
   //站点ID
   private val SITE_NUM: Int = 3
