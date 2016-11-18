@@ -1,6 +1,7 @@
 package sparkstreaming.kafka.lamda
 
 import kafka.serializer.StringDecoder
+import org.apache.log4j.{Level, Logger}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.streaming.dstream.DStream
 import org.apache.spark.streaming.kafka.{HasOffsetRanges, KafkaManager}
@@ -22,7 +23,7 @@ object PView {
   * Created by tangfei on 2016/11/16.
   */
 object LamdaMsgComsumer {
-  private val checkPointDir = "."
+  private val checkPointDir = "\tmp"
   def processRdd(rdd: RDD[(String, String)]) = {
     val logs: RDD[String] = rdd.map(_._2)
     val pageViews: RDD[PView] = logs.map(PView.parseData(_))
@@ -35,11 +36,31 @@ object LamdaMsgComsumer {
   }
 
   def main(args: Array[String]) {
-    System.setProperty("hadoop.home.dir", "E:\\hadoop\\hadoop2.6.0_util")
-    val conf: SparkConf = new SparkConf().setAppName("LamdaMsgComsumer").setMaster("local")
-    val ssc: StreamingContext = new StreamingContext(conf,Seconds(3))
+    if (args.length < 3) {
+      System.err.println( s"""
+                             |Usage: LamdaMsgComsumer <brokers> <processingInterval>
+                             |  <brokers> is a list of one or more Kafka brokers
+                             |  <processingInterval> is  execution time interval
+                             |
+                             |
+                             |spark-submit \\
+                             |--class sparkstreaming.kafka.lamda.LamdaMsgComsumer \\
+                             |--master yarn-client \\
+                             |/home/ryxc/spark-jar/spark-demo.jar \\
+                             |ryxc163:9092,ryxc164:9092,ryxc165:9092 5
+
+        """.stripMargin)
+      System.exit(1)
+    }
+
+    Logger.getLogger("org").setLevel(Level.WARN)
+
+    val Array(kafkaBrokers,processingInterval) = args
+
+    val conf: SparkConf = new SparkConf().setAppName("LamdaMsgComsumer")
+    val ssc: StreamingContext = new StreamingContext(conf,Seconds(processingInterval.toInt))
     ssc.checkpoint(checkPointDir)
-    val kafkaBrokers: String = "10.9.12.21:9092,10.9.12.22:9092,10.9.12.23:9092"
+    //val kafkaBrokers: String = "10.9.12.21:9092,10.9.12.22:9092,10.9.12.23:9092"
     val topics: String = "lamda-topic"
 
     val kafkaParams = Map[String, String](
