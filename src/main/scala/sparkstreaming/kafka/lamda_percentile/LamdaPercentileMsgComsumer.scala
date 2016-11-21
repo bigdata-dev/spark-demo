@@ -45,6 +45,7 @@ object LamdaPercentileMsgComsumer {
       (key, value)
     })
 
+
     //统计页面Seq下，按照加载时间，统计数量
     val loadTimeDStream: DStream[(Seq[String], mutable.HashMap[Int, Int])] = sourceDStream.mapPartitions(
       iter => {
@@ -80,15 +81,33 @@ object LamdaPercentileMsgComsumer {
       x
     }, windowTime, intervalTime)
 
-    loadTimeCollectDStream.foreachRDD(rdd=>{println("##打印聚集后的集合");rdd.foreach(println)})
+    loadTimeCollectDStream.foreachRDD(rdd=>{println("##打印聚集后的集合:");rdd.collect().foreach(println)})
 
     loadTimeCollectDStream.mapPartitions(iter=>{
       //计算百分位，结果格式为 Map(key,Map(percentage,value))
       val resultMap: mutable.HashMap[Seq[String], mutable.HashMap[Double, Int]] = new HashMap[Seq[String],mutable.HashMap[Double,Int]]()
       while(iter.hasNext){
         val tmp: (Seq[String], mutable.HashMap[Int, Int]) = iter.next()
+        val map: mutable.HashMap[Int, Int] = tmp._2
+        val sumCount: Int = map.map(r => r._2).reduce(_ + _)
+        val p25: Double = sumCount * 0.25
+        val p50: Double = sumCount * 0.5
+        val p70: Double = sumCount * 0.75
+        val sortDataSeq: Seq[(Int, Int)] = map.toSeq.sortBy(r => r._1)
 
-
+        val iters: Iterator[(Int, Int)] = sortDataSeq.iterator
+        var curTmpSum = 0.0
+        var prevTmpSum = 0.0
+        val valueMap: mutable.HashMap[Double, Int] = new HashMap[Double,Int]
+        while(iters.hasNext){
+          val tmpData: (Int, Int) = iters.next()
+          prevTmpSum = curTmpSum
+          curTmpSum += tmpData._2
+          if(prevTmpSum <= p25 && curTmpSum >= p25){
+            println("--------- prevTmpSum:"+prevTmpSum+"----curTmpSum:"+curTmpSum+"--tmpData._1:"+tmpData._1)
+            valueMap.put(0.25,tmpData._1)
+          }
+        }
       }
       resultMap.iterator
     })
@@ -99,18 +118,18 @@ object LamdaPercentileMsgComsumer {
   }
 
   def main(args: Array[String]) {
-    if (args.length < 3) {
+    if (args.length < 2) {
       System.err.println( s"""
                              |Usage: LamdaPercentileMsgComsumer <brokers> <processingInterval>
                              |  <brokers> is a list of one or more Kafka brokers
                              |  <processingInterval> is  execution time interval
                              |
                              |
-                             |spark-submit \\
-                             |--class sparkstreaming.kafka.lamda.LamdaPercentileMsgComsumer \\
-                             |--master yarn-client \\
-                             |/home/ryxc/spark-jar/spark-demo.jar \\
-                             |ryxc163:9092,ryxc164:9092,ryxc165:9092 5
+                             |spark-submit \
+                             |--class sparkstreaming.kafka.lamda_percentile.LamdaPercentileMsgComsumer \
+                             |--master local \
+                             |/home/ryxc/spark-jar/spark-demo.jar \
+                             |ryxc163:9092,ryxc164:9092,ryxc165:9092 1
 
         """.stripMargin)
       System.exit(1)
@@ -124,7 +143,7 @@ object LamdaPercentileMsgComsumer {
     val ssc: StreamingContext = new StreamingContext(conf,Seconds(processingInterval.toInt))
     ssc.checkpoint(checkPointDir)
     //val kafkaBrokers: String = "10.9.12.21:9092,10.9.12.22:9092,10.9.12.23:9092"
-    val topics: String = "lamda-topic"
+    val topics: String = "lamda-percentile-topic"
 
     val kafkaParams = Map[String, String](
       "metadata.broker.list" -> kafkaBrokers,

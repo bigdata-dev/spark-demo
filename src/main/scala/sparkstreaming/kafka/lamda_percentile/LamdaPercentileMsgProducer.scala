@@ -50,7 +50,7 @@ class LamdaPercentileMsgProducer(brokers:String, topic:String) extends Runnable{
           msg.append("|")
           msg.append("page" + (random.nextInt(PAGEURL_NUM)))
           msg.append("|")
-          msg.append("loadtime" + (random.nextInt(LOADTIME_NUM))+".html")
+          msg.append((random.nextInt(LOADTIME_NUM)))
           println(msg.toString)
           sendMessage(msg.toString)
         }
