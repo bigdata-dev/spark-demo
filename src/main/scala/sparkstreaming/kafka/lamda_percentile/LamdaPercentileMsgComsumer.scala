@@ -81,36 +81,59 @@ object LamdaPercentileMsgComsumer {
       x
     }, windowTime, intervalTime)
 
-    loadTimeCollectDStream.foreachRDD(rdd=>{println("##打印聚集后的集合:");rdd.collect().foreach(println)})
+    loadTimeCollectDStream.foreachRDD(rdd=>{println("##打印聚集后的集合:");rdd.foreach(println)})
 
-    loadTimeCollectDStream.mapPartitions(iter=>{
+    val loadTimePartitions: DStream[(Seq[String], mutable.HashMap[Double, Int])] = loadTimeCollectDStream.mapPartitions(iter => {
       //计算百分位，结果格式为 Map(key,Map(percentage,value))
       val resultMap: mutable.HashMap[Seq[String], mutable.HashMap[Double, Int]] = new HashMap[Seq[String],mutable.HashMap[Double,Int]]()
-      while(iter.hasNext){
+      while (iter.hasNext) {
         val tmp: (Seq[String], mutable.HashMap[Int, Int]) = iter.next()
         val map: mutable.HashMap[Int, Int] = tmp._2
+        //按照页面统计访问次数
         val sumCount: Int = map.map(r => r._2).reduce(_ + _)
+        println("##sumCount:"+sumCount)
+
+        //计算占比的访问次数
         val p25: Double = sumCount * 0.25
         val p50: Double = sumCount * 0.5
         val p70: Double = sumCount * 0.75
+        println("p25:"+p25)
+        println("p50:"+p50)
+        println("p70:"+p70)
         val sortDataSeq: Seq[(Int, Int)] = map.toSeq.sortBy(r => r._1)
 
         val iters: Iterator[(Int, Int)] = sortDataSeq.iterator
         var curTmpSum = 0.0
         var prevTmpSum = 0.0
         val valueMap: mutable.HashMap[Double, Int] = new HashMap[Double,Int]
-        while(iters.hasNext){
+        //循环计算 每个页面下 超时时间的次数 占 每个页面总次数的 百分比区间
+        while (iters.hasNext) {
           val tmpData: (Int, Int) = iters.next()
           prevTmpSum = curTmpSum
           curTmpSum += tmpData._2
-          if(prevTmpSum <= p25 && curTmpSum >= p25){
-            println("--------- prevTmpSum:"+prevTmpSum+"----curTmpSum:"+curTmpSum+"--tmpData._1:"+tmpData._1)
-            valueMap.put(0.25,tmpData._1)
+          //println("##---- prevTmpSum:" + prevTmpSum)
+          println("##---- curTmpSum:" + curTmpSum)
+          println("##---- tmpData._1:" + tmpData._1)
+
+         //上一次累加小于于等于p25  这一次累加大于等p25
+         if (prevTmpSum <= p25 && curTmpSum >= p25) {
+            println("p25------- prevTmpSum:" + prevTmpSum + "----curTmpSum:" + curTmpSum + "--tmpData._1:" + tmpData._1)
+            valueMap.put(0.25, tmpData._1)
+           //上一次累加小于于等于p50  这一次累加大于等p50
+          }else if (prevTmpSum <= p50 && curTmpSum >= p50) {
+            println("p50------- prevTmpSum:" + prevTmpSum + "----curTmpSum:" + curTmpSum + "--tmpData._1:" + tmpData._1)
+            valueMap.put(0.50, tmpData._1)
+           //上一次累加小于于等于p70  这一次累加大于等p70
+          }else if (prevTmpSum <= p70 && curTmpSum >= p70) {
+            println("p70------- prevTmpSum:" + prevTmpSum + "----curTmpSum:" + curTmpSum + "--tmpData._1:" + tmpData._1)
+            valueMap.put(0.70, tmpData._1)
           }
         }
+        resultMap.put(tmp._1,valueMap)
       }
       resultMap.iterator
     })
+    loadTimePartitions.foreachRDD(x=>{println("##打印计算百分位后的集合:");x.foreach(println)})
 
 
 
@@ -130,6 +153,14 @@ object LamdaPercentileMsgComsumer {
                              |--master local \
                              |/home/ryxc/spark-jar/spark-demo.jar \
                              |ryxc163:9092,ryxc164:9092,ryxc165:9092 1
+                             |
+                             |
+                             |spark-submit \
+                             |--jars /opt/cloudera/parcels/CDH-5.7.1-1.cdh5.7.1.p0.11/jars/spark-streaming-kafka_2.10-1.6.0-cdh5.7.1.jar,/opt/cloudera/parcels/CDH-5.7.1-1.cdh5.7.1.p0.11/jars/kafka_2.10-0.9.0-kafka-2.0.0.jar,/opt/cloudera/parcels/CDH-5.7.1-1.cdh5.7.1.p0.11/jars/kafka-clients-0.9.0-kafka-2.0.0.jar,/opt/cloudera/parcels/CDH-5.7.1-1.cdh5.7.1.p0.11/jars/metrics-core-2.2.0.jar \
+                             |--class sparkstreaming.kafka.lamda_percentile.LamdaPercentileMsgComsumer \
+                             |--master local \
+                             |/root/spark-work/spark-demo.jar \
+                             |10.9.12.21:9092,10.9.12.22:9092,10.9.12.23:9092 1
 
         """.stripMargin)
       System.exit(1)

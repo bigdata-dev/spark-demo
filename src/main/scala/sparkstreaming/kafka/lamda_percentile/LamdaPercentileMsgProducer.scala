@@ -17,9 +17,9 @@ class LamdaPercentileMsgProducer(brokers:String, topic:String) extends Runnable{
   //浏览器类型
   private val IETYPE_NUM: Int = 3
   //页面url
-  private val PAGEURL_NUM: Int = 100
+  private val PAGEURL_NUM: Int = 6
   //加载时间(秒)
-  private val LOADTIME_NUM: Int = 50
+  private val LOADTIME_NUM: Int = 8
 
 
   private val props: Properties = new Properties()
