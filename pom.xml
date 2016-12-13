@@ -14,6 +14,10 @@
             <id>cloudera</id>
             <url>https://repository.cloudera.com/cloudera/cloudera-repos</url>
         </repository>
+        <repository>
+                <id>mvn-repo</id>
+                <url>http://maven.nlpcn.org/</url>
+        </repository>
     </repositories>
 
     <dependencies>
@@ -46,6 +50,11 @@
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-mllib_2.10</artifactId>
             <version>1.6.0-cdh5.7.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.ansj</groupId>
+            <artifactId>ansj_seg</artifactId>
+            <version>5.0.4</version>
         </dependency>
         <dependency>
             <groupId>log4j</groupId>
