@@ -3,7 +3,6 @@ package sparkmllib.logisticregression
 import org.ansj.splitWord.analysis.ToAnalysis
 import org.apache.spark.mllib.classification.LogisticRegressionWithSGD
 import org.apache.spark.mllib.feature.HashingTF
-import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.mllib.regression.LabeledPoint
