@@ -60,7 +60,6 @@ object LamdaMsgComsumer {
     val conf: SparkConf = new SparkConf().setAppName("LamdaMsgComsumer")
     val ssc: StreamingContext = new StreamingContext(conf,Seconds(processingInterval.toInt))
     ssc.checkpoint(checkPointDir)
-    //val kafkaBrokers: String = "10.9.12.21:9092,10.9.12.22:9092,10.9.12.23:9092"
     val topics: String = "lamda-topic"
 
     val kafkaParams = Map[String, String](

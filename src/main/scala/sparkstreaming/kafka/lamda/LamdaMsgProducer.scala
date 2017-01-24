@@ -74,19 +74,16 @@ class LamdaMsgProducer(brokers:String, topic:String) extends Runnable{
 
 /**
   * 创建topic:
-  * kafka-topics --create --zookeeper hadoop10.zto:2181/kafka --replication-factor 3 --partitions 3 --topic lamda-topic
   * kafka-topics --create --zookeeper ryxc163:2181 --replication-factor 3 --partitions 3 --topic lamda-topic
   * 生产message:
-  * kafka-console-producer --broker-list 10.9.12.21:9092,10.9.12.22:9092,10.9.12.23:9092 --topic lamda-topic
   * kafka-console-producer --broker-list ryxc163:9092,ryxc164:9092,ryxc165:9092 --topic lamda-topic
   * 消费message:
-  * kafka-console-consumer --zookeeper hadoop10.zto:2181/kafka --topic lamda-topic
   * kafka-console-consumer --zookeeper ryxc163:2181 --topic lamda-topic
   */
 object LamdaMsgProducer{
   def main(args: Array[String]) {
     if(args.length < 2){
-      println("Usage LamdaMsgProducer 10.9.12.21:9092,10.9.12.22:9092,10.9.12.23:9092 lamda-topic")
+      println("Usage LamdaMsgProducer ryxc163:9092,ryxc164:9092,ryxc165:9092 lamda-topic")
       System.exit(1)
     }
     new Thread(new LamdaMsgProducer(args(0),args(1))).start()
