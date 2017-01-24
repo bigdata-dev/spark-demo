@@ -18,7 +18,7 @@ object SparkSQLReadOggKafkaJson2 {
     conf.setMaster("local")
     val ssc = new StreamingContext(conf,Seconds(1))
 
-    val kafkaBrokers = "10.9.12.21:9092,10.9.12.22:9092,10.9.12.23:9092"
+    val kafkaBrokers = "ryxc163:9092,ryxc164:9092,ryxc165:9092"
     val kafkaParams = Map[String, String](
       "metadata.broker.list" -> kafkaBrokers,
       "group.id" -> "kafkaReadGroup2")
