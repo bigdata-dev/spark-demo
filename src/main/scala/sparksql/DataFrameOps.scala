@@ -9,10 +9,10 @@ import org.apache.spark.{SparkConf, SparkContext}
   */
 object DataFrameOps {
   """
-    |spark-submit \\
-    |--class sparksql.DataFrameOps \\
-    |--master yarn-client \\
-    |/root/spark-demo.jar
+    |spark-submit \
+    |--class sparksql.DataFrameOps \
+    |--master yarn-client \
+    |/var/lib/hadoop-hdfs/spark-jar/spark-demo.jar
   """.stripMargin
   def main(args: Array[String]) {
     val conf = new SparkConf()
@@ -27,7 +27,6 @@ object DataFrameOps {
     df.select(df("name"), df("age") + 10).show()
     df.filter(df("age") > 10).show()
     df.groupBy("age").count().show()
-
 
   }
 
