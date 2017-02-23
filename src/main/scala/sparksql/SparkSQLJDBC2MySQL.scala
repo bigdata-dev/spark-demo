@@ -19,12 +19,14 @@ object SparkSQLJDBC2MySQL {
     |--class sparksql.SparkSQLJDBC2MySQL \
     |--master yarn-client \
     |--driver-memory 1024m \
+    |--executor-memory 1024m \
     |--jars /usr/share/java/mysql-connector-java.jar  \
     |/var/lib/hadoop-hdfs/spark-jar/spark-demo.jar
   """.stripMargin
   def main(args: Array[String]): Unit = {
     val conf = new SparkConf().setAppName("SparkSQLJDBC2MySQL")
     val sc = new SparkContext(conf)
+    sc.setLogLevel("WARN")
     val sqlContext = new SQLContext(sc)
 
     /**
@@ -91,6 +93,7 @@ object SparkSQLJDBC2MySQL {
       }
     })
 
+    sc.stop()
 
   }
 
