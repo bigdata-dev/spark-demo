@@ -53,7 +53,8 @@ object SparkSQL2Hive {
 
 
     /**
-      * 使用HiveContext的table方面可以直接去读Hive数据仓库中的table并生成DataFrame
+      * 1.使用HiveContext的table方面可以直接去读Hive数据仓库中的table并生成DataFrame
+      * 2.接下来可以进行机器学习，图计算，各种复杂的ETL等操作
       */
     val dataFromHive = hiveContext.table("peopleinformatresult")
     dataFromHive.show()
