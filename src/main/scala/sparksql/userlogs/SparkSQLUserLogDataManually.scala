@@ -1,4 +1,4 @@
-package sparksql
+package sparksql.userlogs
 
 import java.io.{FileOutputStream, OutputStreamWriter, PrintWriter}
 import java.text.SimpleDateFormat
@@ -18,7 +18,7 @@ import scala.util.Random
   * action:点击和注册
   *
   */
-object SparkSQLGenManually {
+object SparkSQLUserLogDataManually {
   //具体的论坛频道
   val channelNames = Array(
     "spark","scala","kafka","flink","hadoop",
