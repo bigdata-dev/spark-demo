@@ -44,18 +44,36 @@ object SparkSQLUserLogOpsA {
     " order by pv desc ").show()
 
 
-
+  /**
+    *  用户跳出率 (今天访问页面只有一次)
+    */
   //统计总pv collect 返回的是org.apache.spark.sql.ROW
   val pvCount = sqlContext.sql("select count(*) from userLogs ul" +
     " where ul.action='View' and ul.date='2017-02-26'").collect()
-
   val totalTargetPV = pvCount(0).get(0)
-
-  //用户跳出率 (今天访问页面只有一次)
   val targetResult =  sqlContext.sql("select count(*) from (select count(*) totalNumber from userLogs where action = 'View' and date='2017-02-26'" +
     " group by userID having totalNumber=1) targetTable ").collect()
   val pv1 = targetResult(0).get(0)
   val percent = pv1.toString.toDouble/totalTargetPV.toString.toDouble
+
+  /**
+    * 用户注册率
+    */
+  //昨天总的注册的用户数
+  sqlContext.sql("select count(*) from userLogs where action='Register' and data='2017-02-26' ").show()
+  //新用户的访问总数
+
+
+  /**
+    * 热门板块
+    */
+  val hosChannel = sqlContext.sql("select date,channel,channelpv from " +
+    " (select date, channel,count(*) channelpv from userLogs where action='View' and date='2017-02-26' " +
+    " group by date, channel) subquery order by channelpv desc ").show()
+
+
+
+
 
 
 
