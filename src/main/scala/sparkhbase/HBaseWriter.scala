@@ -15,7 +15,7 @@ import org.apache.spark.{SparkConf, SparkContext}
 object HBaseWriter {
 
   """
-    |create 'userinfo', {NAME => 'info', VERSIONS => 5}
+      |create 'userinfo', {NAME => 'info', VERSIONS => 10}
     |
     |spark-submit \
     |--class sparkhbase.HBaseWriter \
