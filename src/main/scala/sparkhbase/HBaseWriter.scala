@@ -50,6 +50,8 @@ object HBaseWriter {
     val conf = new SparkConf().setAppName("HBaseWriter")
     val sc = new SparkContext(conf)
 
+//    sc.schedulerBackend.applicationAttemptId()
+
     //定义 HBase 的配置
     val hbaseConf = HBaseConfiguration.create()
     hbaseConf.set("hbase.zookeeper.quorum", quorum)

@@ -16,9 +16,10 @@ class MDBManager(isLocal:Boolean) extends Serializable{
   private var in:InputStream = _
   isLocal match{
     //spark-clilent模式下 如果为true 将c3p0.properties 上传到/opt/cloudera/parcels/CDH/lib/spark/conf目录下
-    case true  => in = getClass().getResourceAsStream("/c3p0.properties");
-    case false => in = new FileInputStream(new File(SparkFiles.get("c3p0.properties")))
+    case true  => in = getClass().getResourceAsStream("/neo4j_c3p0.properties");
+    case false => in = new FileInputStream(new File(SparkFiles.get("neo4j_c3p0.properties")))
   }
+
   try {
     prop.load(in);
     cpds.setJdbcUrl(prop.getProperty("jdbcUrl").toString());
